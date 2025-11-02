@@ -43,14 +43,14 @@ The scripts assume an HPC environment using SLURM and the following modules/tool
 .
 ├── 01_Run_bwa_clones.sh
 ├── 02_Run_mpileup_clones.sh
-├── 03_Plot_PCA_clones.R
-├── 04_Run_bwa_pool.sh
-├── 05_Run_mpileup_pool.sh
-├── 06_Run_poolSeqFreq.sh
-├── 07_Plot_frequencies_from_poolSeq.R
-├── singletons_clones.py
-├── singletons_summary_positions.py
+├── 03_singletons_clones.py
+├── 04_singletons_summary_positions.py
+├── 05_Plot_PCA_clones.R
+├── 06_Run_bwa_pool.sh
+├── 07_Run_mpileup_pool.sh
+├── 08_Run_poolSeqFreq.sh
 ├── singletons_check_allele_frequency.py
+├── 09_Plot_frequencies_from_poolSeq.R
 └── README.md
 ```
 
@@ -97,10 +97,10 @@ Output: `Daphnia_DmagnaLRV01.mQ100.SNP.NoMissing.vcf.gz`
 ### 3. Identify singleton variants
 
 ```bash
-python singletons_clones.py Daphnia_DmagnaLRV01.mQ100.SNP.NoMissing.vcf > clone_homozygous_singletons_mQ100.txt
+python 03_singletons_clones.py Daphnia_DmagnaLRV01.mQ100.SNP.NoMissing.vcf > clone_homozygous_singletons_mQ100.txt
 ```
 
-**Script:** `singletons_clones.py`  
+**Script:** `03_singletons_clones.py`  
 - Parses the VCF file.
 - Detects SNPs unique to a single clone (singleton sites).
 - Output columns:  
@@ -111,7 +111,7 @@ python singletons_clones.py Daphnia_DmagnaLRV01.mQ100.SNP.NoMissing.vcf > clone_
 ### 4. Summarize singleton counts
 
 ```bash
-python singletons_summary_positions.py clone_homozygous_singletons_mQ100.txt
+python 04_singletons_summary_positions.py clone_homozygous_singletons_mQ100.txt
 ```
 
 Output example:
@@ -131,7 +131,7 @@ Each number represents the count of unique singleton positions per clone.
 
 Run PCA in R to visualize population structure.
 
-**Script:** `03_Plot_PCA_clones.R`  
+**Script:** `05_Plot_PCA_clones.R`  
 - Uses the filtered VCF (`*.SNP.NoMissing.vcf.gz`) to perform PCA on genotypes.  
 - Distinguishes clones clearly and can reveal hybrid individuals (e.g., DP24 shows intermediate position between DP and DG).
 
@@ -144,10 +144,10 @@ Run PCA in R to visualize population structure.
 ### 1. Map pooled sample(s)
 
 ```bash
-sbatch 04_Run_bwa_pool.sh
+sbatch 06_Run_bwa_pool.sh
 ```
 
-**Script:** `04_Run_bwa_pool.sh`  
+**Script:** `06_Run_bwa_pool.sh`  
 - Maps pooled sequencing reads to the *D. magna* reference.
 - Produces high-quality BAMs with duplicates removed.
 
@@ -156,10 +156,10 @@ sbatch 04_Run_bwa_pool.sh
 ### 2. Create pileup/VCF with allele depths
 
 ```bash
-sbatch --array=1-7 05_Run_mpileup_pool.sh
+sbatch --array=1-7 07_Run_mpileup_pool.sh
 ```
 
-**Script:** `05_Run_mpileup_pool.sh`  
+**Script:** `07_Run_mpileup_pool.sh`  
 - Generates VCFs with per-site allele depth (`AD`) and depth (`DP`) annotations.
 - Output: `Daphnia_DmagnaLRV01_POOL.mpileupRAW_<sample>.vcf`
 
@@ -168,10 +168,10 @@ sbatch --array=1-7 05_Run_mpileup_pool.sh
 ### 3. Estimate clone allele frequencies
 
 ```bash
-sbatch 06_Run_poolSeqFreq.sh
+sbatch 08_Run_poolSeqFreq.sh
 ```
 
-**Script:** `06_Run_poolSeqFreq.sh`  
+**Script:** `08_Run_poolSeqFreq.sh`  
 - Iterates over pool VCFs.
 - Calls `singletons_check_allele_frequency.py` to extract allele frequencies of clone-specific singletons.
 - Outputs per-sample frequency tables:  
@@ -200,10 +200,10 @@ This allows checking the allele frequency of clone-unique SNPs in the pooled dat
 ### 5. Calculate and Visualize Clone Frequencies
 
 ```bash
-Rscript 07_Calculate_frequencies_Helene.R
+Rscript 09_Calculate_frequencies_Helene.R
 ```
 
-**Script:** `07_Calculate_frequencies_Helene.R`  
+**Script:** `09_Calculate_frequencies_Helene.R`  
 - Aggregates all per-sample frequency tables (`*_ALL_freqs.txt`) into a single dataset.  
 - Corrects allele frequencies for zygosity (`Alt_Allele_Frequency_corrected`).  
 - Produces histograms of corrected allele frequencies for each pooled sample.  
