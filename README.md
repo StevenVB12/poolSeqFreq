@@ -41,16 +41,16 @@ The scripts assume an HPC environment using SLURM and the following modules/tool
 
 ```
 .
-├── Run_bwa_clones.sh
-├── Run_mpileup_clones.sh
-├── Run_bwa_pool.sh
-├── Run_mpileup_pool.sh
-├── Run_poolFreq.sh
+├── 01_Run_bwa_clones.sh
+├── 02_Run_mpileup_clones.sh
+├── 03_Plot_PCA_clones.R
+├── 04_Run_bwa_pool.sh
+├── 05_Run_mpileup_pool.sh
+├── 06_Run_poolSeqFreq.sh
+├── 07_Plot_frequencies_from_poolSeq.R
 ├── singletons_clones.py
 ├── singletons_summary_positions.py
 ├── singletons_check_allele_frequency.py
-├── Plot_PCA_clones.R
-├── Plot_frequencies_from_poolSeq.R
 └── README.md
 ```
 
@@ -61,10 +61,10 @@ The scripts assume an HPC environment using SLURM and the following modules/tool
 ### 1. Mapping individual clones
 
 ```bash
-sbatch --array=1-30 Run_bwa_clones.sh
+sbatch --array=1-30 01_Run_bwa_clones.sh
 ```
 
-**Script:** `Run_bwa_clones.sh`  
+**Script:** `01_Run_bwa_clones.sh`  
 - Maps each clone against the *D. magna* reference genome (`DmagnaLRV01.fasta`).
 - Filters for properly paired, high-quality reads (`-f 0x02 -q 20`).
 - Removes PCR duplicates using Picard.
@@ -72,19 +72,19 @@ sbatch --array=1-30 Run_bwa_clones.sh
 
 ---
 
-### 2. Variant calling
+### 2.1 Variant calling
 
 ```bash
-sbatch Run_mpileup_clones.sh
+sbatch 02_Run_mpileup_clones.sh
 ```
 
-**Script:** `Run_mpileup_clones.sh`  
+**Script:** `02_Run_mpileup_clones.sh`  
 - Calls SNPs for all 30 clones simultaneously.
 - Output: `Daphnia_DmagnaLRV01.vcf.gz`
 
 ---
 
-### 3. Filtering SNPs
+### 2.2 Filtering SNPs
 
 ```bash
 vcftools --gzvcf Daphnia_DmagnaLRV01.vcf.gz --recode --remove-indels --min-alleles 2 --minQ 100 --max-missing 1 --stdout > Daphnia_DmagnaLRV01.mQ100.SNP.NoMissing.vcf
@@ -94,7 +94,7 @@ Output: `Daphnia_DmagnaLRV01.mQ100.SNP.NoMissing.vcf.gz`
 
 ---
 
-### 4. Identify singleton variants
+### 3. Identify singleton variants
 
 ```bash
 python singletons_clones.py Daphnia_DmagnaLRV01.mQ100.SNP.NoMissing.vcf > clone_homozygous_singletons_mQ100.txt
@@ -108,7 +108,7 @@ python singletons_clones.py Daphnia_DmagnaLRV01.mQ100.SNP.NoMissing.vcf > clone_
 
 ---
 
-### 5. Summarize singleton counts
+### 4. Summarize singleton counts
 
 ```bash
 python singletons_summary_positions.py clone_homozygous_singletons_mQ100.txt
@@ -127,25 +127,27 @@ Each number represents the count of unique singleton positions per clone.
 
 ---
 
-### 6. PCA of genotypes
+### 5. PCA of genotypes
 
 Run PCA in R to visualize population structure.
 
-**Script:** `Plot_PCA_clones.R`  
+**Script:** `03_Plot_PCA_clones.R`  
 - Uses the filtered VCF (`*.SNP.NoMissing.vcf.gz`) to perform PCA on genotypes.  
 - Distinguishes clones clearly and can reveal hybrid individuals (e.g., DP24 shows intermediate position between DP and DG).
 
 ---
+
+
 
 ## Part 2 — Pool-Seq Analysis
 
 ### 1. Map pooled sample(s)
 
 ```bash
-sbatch Run_bwa_Helene_pool.sh
+sbatch 04_Run_bwa_pool.sh
 ```
 
-**Script:** `Run_bwa_Helene_pool.sh`  
+**Script:** `04_Run_bwa_pool.sh`  
 - Maps pooled sequencing reads to the *D. magna* reference.
 - Produces high-quality BAMs with duplicates removed.
 
@@ -154,34 +156,34 @@ sbatch Run_bwa_Helene_pool.sh
 ### 2. Create pileup/VCF with allele depths
 
 ```bash
-sbatch --array=1-7 Run_mpileup_Helene_pool2.sh
+sbatch --array=1-7 05_Run_mpileup_pool.sh
 ```
 
-**Script:** `Run_mpileup_Helene_pool2.sh`  
+**Script:** `05_Run_mpileup_pool.sh`  
 - Generates VCFs with per-site allele depth (`AD`) and depth (`DP`) annotations.
-- Output: `Daphnia_Helene_DmagnaLRV01_POOL.mpileupRAW_<sample>.vcf`
+- Output: `Daphnia_DmagnaLRV01_POOL.mpileupRAW_<sample>.vcf`
 
 ---
 
 ### 3. Estimate clone allele frequencies
 
 ```bash
-sbatch Run_Helene_poolFreq2.sh
+sbatch 06_Run_poolSeqFreq.sh
 ```
 
-**Script:** `Run_Helene_poolFreq2.sh`  
+**Script:** `06_Run_poolSeqFreq.sh`  
 - Iterates over pool VCFs.
-- Calls `singletons_check_allele_frequency2.py` to extract allele frequencies of clone-specific singletons.
+- Calls `singletons_check_allele_frequency.py` to extract allele frequencies of clone-specific singletons.
 - Outputs per-sample frequency tables:  
-  `Helene_clone_magnapulex_singletons_mQ100_<sample>_ALL_freqs.txt`
+  `clone_magnapulicgaleata_singletons_mQ100_<sample>_ALL_freqs.txt`
 
 ---
 
 ### 4. Python script details
 
-#### `singletons_check_allele_frequency2.py`
+#### `singletons_check_allele_frequency.py`
 - **Inputs:**
-  1. Clone-specific singleton file (`Helene_clone_magnapulex_singletons_mQ100.txt`)
+  1. Clone-specific singleton file (`clone_magnapulicgaleata_singletons_mQ100.txt`)
   2. Pool VCF file with AD/DP annotations.
 - **Outputs:** Frequency estimates per position and clone.
 
@@ -195,43 +197,28 @@ This allows checking the allele frequency of clone-unique SNPs in the pooled dat
 
 ---
 
-### 5. Interpretation
+### 5. Calculate and Visualize Clone Frequencies
 
-- **Sum of mean clone frequencies** ≈ 1.5 → indicates some background noise.  
+```bash
+Rscript 07_Calculate_frequencies_Helene.R
+```
+
+**Script:** `07_Calculate_frequencies_Helene.R`  
+- Aggregates all per-sample frequency tables (`*_ALL_freqs.txt`) into a single dataset.  
+- Corrects allele frequencies for zygosity (`Alt_Allele_Frequency_corrected`).  
+- Produces histograms of corrected allele frequencies for each pooled sample.  
+- Calculates mean, median, and 95% confidence intervals per sample.  
+- **Outputs:**  
+  - `summary_stats.txt` — table of clone-level summary statistics  
+  - Frequency distribution plots per sample  
+
+---
+
+### 6. Interpretation
+
 - **Sum of median frequencies** ≈ 1.0 → confirms accuracy of clone frequency estimates.  
 - Deviations likely due to unequal DNA input or differences in individual sizes.
 
----
-
-## Suggested File Renames (for clarity)
-
-| Current | Suggested |
-|----------|------------|
-| `Run_bwa_Helene.sh` | `01_map_clones.sh` |
-| `Run_mpileup_Helene.sh` | `02_call_variants_clones.sh` |
-| `singletons_Helene.py` | `03_extract_singletons.py` |
-| `singletons_Helene_summary_positions.py` | `04_summarize_singletons.py` |
-| `Run_bwa_Helene_pool.sh` | `05_map_poolseq.sh` |
-| `Run_mpileup_Helene_pool2.sh` | `06_call_variants_poolseq.sh` |
-| `singletons_check_allele_frequency2.py` | `07_check_allele_frequencies.py` |
-| `Run_Helene_poolFreq2.sh` | `08_run_pool_frequency_estimation.sh` |
-| `Plot_PCA_Helene.R` | `09_plot_PCA.R` |
-
----
-
-## Output Summary
-
-| Step | Script | Main Output |
-|------|---------|-------------|
-| Clone Mapping | `Run_bwa_Helene.sh` | `*.filtered.sorted.nd.bam` |
-| Variant Calling | `Run_mpileup_Helene.sh` | `Daphnia_Helene_DmagnaLRV01.vcf.gz` |
-| SNP Filtering | `vcftools` | `*.SNP.NoMissing.vcf.gz` |
-| Singleton Extraction | `singletons_Helene.py` | `Helene_clone_homozygous_singletons_mQ100.txt` |
-| Singleton Summary | `singletons_Helene_summary_positions.py` | Tab summary per clone |
-| PCA | `Plot_PCA_Helene.R` | PCA plot |
-| Pool Mapping | `Run_bwa_Helene_pool.sh` | `*.filtered.sorted.nd.bam` |
-| Pool VCF | `Run_mpileup_Helene_pool2.sh` | `POOL.mpileupRAW_<sample>.vcf` |
-| Frequency Estimation | `singletons_check_allele_frequency2.py` | `_ALL_freqs.txt` per sample |
 
 ---
 
@@ -239,15 +226,13 @@ This allows checking the allele frequency of clone-unique SNPs in the pooled dat
 
 If you use this pipeline or parts of it, please cite:
 
-> [Your Name] et al., *Daphnia Pool-Seq Pipeline*, GitHub Repository (2025).  
-> DOI: [add DOI if archived via Zenodo]
+Vanvelk, H., Govaert, L., Van Belleghem, S., Matthews, B., Spaak, P., & De Meester, L. (2025). Genetic diversity alters zooplankton community assembly responses to fish predation.
 
 ---
 
 ## Author
 
-Developed by **Helene [Surname]**  
-with pipeline organization and documentation by collaborators.
+Developed by **Héléne Vanvelk and Stven Van Belleghem**  
 
 ---
 
@@ -259,11 +244,6 @@ This project is released under the MIT License — feel free to use, modify, and
 
 ## Notes
 
-For reproducibility, you can archive VCF and summary outputs with metadata describing:
-- Reference genome version (`DmagnaLRV01.fasta`)
-- Sequencing depth and sample table
-- SLURM job IDs for reproducibility
-
-For questions or improvements, open an issue or pull request on GitHub.
+Daphnia magna reference genome used: https://pmc.ncbi.nlm.nih.gov/articles/PMC10570034/ 
 
 ---
