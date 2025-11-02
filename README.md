@@ -232,7 +232,7 @@ Vanvelk, H., Govaert, L., Van Belleghem, S., Matthews, B., Spaak, P., & De Meest
 
 ## Author
 
-Developed by **Héléne Vanvelk and Stven Van Belleghem**  
+Developed by **Héléne Vanvelk and Steven Van Belleghem**  
 
 ---
 
